@@ -1,70 +1,151 @@
-# Go CMS Editor for a Basic Blog
+# Go CMS Editor
 
-This is a lightweight CMS backend written in Go, designed to create and manage blog posts stored as Markdown files with frontmatter metadata. 
+A lightweight, file-based CMS written in Go for managing markdown content with YAML frontmatter. Designed to work alongside a Next.js static site.
 
-It is currently used as the CMS for posts for [my personal website](https://marcbachan.com), and is meant to be used alongside a blog structure like [this one](https://vercel.com/templates/blog/blog-starter-kit) built in Next.js (which I also use for my site).
-
-I wrote this both as a practice exercise with Go, as well as a means of simplifying my content management process. 
-
-Please note that I did generate portions of this README using LLMs, mainly for tidy formatting.
+Live at: **[marcbachan.com](https://marcbachan.com)**
 
 ---
 
 ## Features
 
-- Create posts with rich Markdown content and YAML frontmatter
-- Drag-and-drop image upload with preview
-- Live Markdown preview (with cover image) using `marked.js`
-- Cover and OG image URLs populated from uploads
-- Images stored in `/assets/img/<slug>/<filename>`
-- Posts stored in `postsDir` as `.md` files
-- Temporary image staging (`/tmp-preview`) before post is saved
-- Edit and delete existing posts
-- Filter post list by tag
-- Basic login system (session-based auth)
-- HTMX-enhanced forms
-- Docker + Docker Compose support
+- **Multi-content type support** - Manage posts, photos, and custom content types from one dashboard
+- **Side-by-side live preview** - Editor on left, real-time rendered preview on right
+- **Expandable inline previews** - Click any item in the list to expand and preview without leaving the page
+- **Drag-and-drop image upload** with automatic file organization
+- **Config-driven content types** - Add new content types via JSON config, no code changes needed
+- **Markdown rendering** with `marked.js`
+- **HTMX-enhanced UI** for smooth interactions
+- **Session-based authentication**
+- **Docker support**
 
 ---
 
-## Project structure
+## How It Works
+
+### Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   CMS Editor    │     │  Markdown Files │     │   Next.js Site  │
+│   (Go backend)  │────▶│   (_posts/, _photos/)  │◀────│   (Frontend)    │
+│   localhost:8080│     │   + images      │     │   localhost:3000│
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+```
+
+1. **CMS Editor** (this project) - A Go web app for creating/editing content
+2. **Markdown Files** - Content stored as `.md` files with YAML frontmatter
+3. **Next.js Site** - Reads the markdown files and renders the public website
+
+### Content Structure
+
+Each content item is a markdown file with YAML frontmatter:
+
+```markdown
+---
+title: "My Post Title"
+excerpt: "A brief description"
+coverImage: "/assets/img/my-post/cover.jpg"
+date: "2025-01-17"
+ogImage:
+  url: "/assets/img/my-post/cover.jpg"
+tags: [art, featured]
+---
+
+Your markdown content here...
+```
+
+---
+
+## Project Structure
 
 ```
 cms/
-├── main.go                # Main app entrypoint
-├── handlers/              # HTTP handlers
-├── model/                 # BlogPost struct
-├── storage/               # Markdown I/O helpers
-├── templates/             # HTMX HTML templates
-├── config/                # Settings loader
-├── public/                # Static files (images, CSS)
-│   └── tmp-preview/       # Temporary images before post is created
-|   └── styles/            # CSS
+├── main.go                    # App entrypoint and routes
+├── config/
+│   ├── config.go              # Config loader with content type support
+│   └── config.json            # Content type definitions
+├── handlers/
+│   ├── auth.go                # Login/logout handlers
+│   ├── blog.go                # Legacy post handlers (kept for compatibility)
+│   └── content.go             # Generic content type handlers
+├── model/
+│   ├── post.go                # BlogPost struct (legacy)
+│   └── content.go             # Generic Content struct
+├── storage/
+│   ├── reader.go              # Read markdown with frontmatter
+│   └── writer.go              # Write markdown with frontmatter
+├── templates/
+│   ├── dashboard.html         # Content type overview
+│   ├── listcontent.html       # List view with expandable previews
+│   ├── editcontent.html       # Side-by-side editor
+│   ├── newcontent.html        # Create form with live preview
+│   ├── login.html             # Authentication
+│   └── partials/
+│       └── preview.html       # HTMX preview partial
+├── public/
+│   ├── styles/styles.css      # CMS styling
+│   └── tmp-preview/           # Temporary image uploads
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
-
-````
+```
 
 ---
 
-## Local Development
+## Getting Started
 
 ### Requirements
 
 - Go 1.24+
 - (Optional) Docker + Docker Compose
 
-### Using `go run`
+### 1. Configure Environment
+
+Create a `.env` file in the `cms/` directory:
+
+```env
+CMS_USER="admin"
+CMS_PASS="your-password"
+SESSION_SECRET="your-secret-key"
+```
+
+### 2. Configure Content Types
+
+Edit `config.json` to define your content types:
+
+```json
+{
+  "postsDir": "../_posts",
+  "imagesDir": "../public/assets/img",
+  "contentTypes": [
+    {
+      "name": "Posts",
+      "slug": "posts",
+      "directory": "../_posts",
+      "imagesDir": "../public/assets/img",
+      "icon": "📝"
+    },
+    {
+      "name": "Photos",
+      "slug": "photos",
+      "directory": "../_photos",
+      "imagesDir": "../public/assets/photo",
+      "icon": "📷"
+    }
+  ]
+}
+```
+
+### 3. Run the CMS
 
 ```bash
 cd cms
 go run main.go
-````
+```
 
 Visit: [http://localhost:8080](http://localhost:8080)
 
-### With Docker Compose
+### With Docker
 
 ```bash
 docker-compose up --build
@@ -72,129 +153,251 @@ docker-compose up --build
 
 ---
 
-## 🔐 Authentication
+## Using the CMS
 
-* On first run, you'll need to set 
+### Dashboard
 
-`.env`
+After logging in, you'll see the dashboard with all configured content types displayed as cards. Each card shows the count of items in that collection.
 
+### Viewing Content
+
+1. Click a content type card (e.g., "Posts")
+2. See all items listed with title, date, and tags
+3. **Click any row** to expand an inline preview
+4. Use tag filters to narrow down the list
+
+### Creating Content
+
+1. Click "+ Create New" from any content list
+2. Fill in the form fields (title, excerpt, tags, date)
+3. **Drag and drop** an image onto the dropzone
+4. Write your markdown content
+5. Watch the **live preview** update on the right
+6. Click "Create" to save
+
+### Editing Content
+
+1. Click any item title to open the editor
+2. Use the **side-by-side view**: editor on left, live preview on right
+3. All changes preview instantly as you type
+4. Click "Save Changes" when done
+
+### Deleting Content
+
+1. From the list view, click the "X Delete" button
+2. Confirm the deletion in the prompt
+3. The markdown file and associated images are removed
+
+---
+
+## Adding New Content Types
+
+To add a new content type (e.g., "Projects"):
+
+### 1. Create the content directory
+
+```bash
+mkdir ../_projects
 ```
-CMS_USER="admin"
-CMS_PASS="password"
-SESSION_SECRET="super-secret"
-```
 
----
-
-## Creating posts
-
-1. Go to `/new`
-2. Fill in title, content, tags, etc.
-3. Drag and drop an image
-4. Click "Create Post"
-5. The Markdown file is saved in `/posts/<slug>.md`
-6. The image is moved to `/assets/img/<slug>/<filename>`
-
----
-
-## Editing posts
-
-* Visit `/edit/<slug>`
-* Edit frontmatter, image, or content
-* Live preview will render the image and Markdown in real time
-
----
-
-## Deleting posts
-
-* On the `/posts` list, click the 🗑 button
-* Uses `hx-delete` and confirms via prompt
-
----
-
-## Configuration 
-
-### `config/config.json`
-
-Set these paths to the corresponding directories for posts and images in your project. Support for multiple directories is meant to be inferred and extended through the use of tags.
+### 2. Add to config.json
 
 ```json
 {
-  "postsDir": "./posts",
-  "imagesDir": "../public/assets/img",
+  "contentTypes": [
+    // ... existing types ...
+    {
+      "name": "Projects",
+      "slug": "projects",
+      "directory": "../_projects",
+      "imagesDir": "../public/assets/projects",
+      "icon": "🚀"
+    }
+  ]
 }
 ```
 
-### `.env`
+### 3. Restart the CMS
+
+That's it! The new content type will appear on the dashboard automatically.
+
+---
+
+## URL Structure
+
+| URL | Description |
+|-----|-------------|
+| `/` | Dashboard (after login) |
+| `/login` | Login page |
+| `/{type}` | List all items of a content type |
+| `/{type}/new` | Create new item |
+| `/{type}/edit/{slug}` | Edit existing item |
+| `/{type}/preview/{slug}` | HTMX preview partial |
+| `/api/{type}` | POST - Create item |
+| `/api/{type}/{slug}` | PUT - Update, DELETE - Remove |
+| `/api/upload` | POST - Upload image |
+
+---
+
+## Image Handling
+
+### Upload Flow
+
+1. User drags image to dropzone
+2. Image uploads to `/public/tmp-preview/` with a UUID filename
+3. Preview URL returned immediately for live preview
+4. On content creation, image moves to final location: `/{imagesDir}/{slug}/{filename}`
+5. Temp folder is cleared after successful save
+
+### Image Paths in Content
+
+Images are stored relative to the public folder:
 
 ```
-CMS_USER="admin"
-CMS_PASS="password"
-SESSION_SECRET="super-secret"
+/assets/img/my-post/cover.jpg     # For posts
+/assets/photo/sunset/image.jpg    # For photos
 ```
 
+---
+
+## Integration with Next.js
+
+This CMS is designed to work with a Next.js site that reads markdown files. The site should:
+
+1. Read content from `_posts/`, `_photos/`, etc.
+2. Parse frontmatter with `gray-matter`
+3. Render markdown with `remark` and `remark-html`
+4. Serve images from the `public/` folder
+
+### Running Both Together
+
+In your root `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "concurrently \"yarn dev:cms\" \"yarn dev:next\"",
+    "dev:cms": "cd cms && go run main.go",
+    "dev:next": "next dev"
+  }
+}
+```
+
+Then run:
+
+```bash
+yarn dev
+```
+
+- CMS runs on `http://localhost:8080`
+- Next.js runs on `http://localhost:3000`
 
 ---
 
-## Static File Handling
+## Technical Details
 
-* Go serves static files from `./public/`
-* Images are accessed via `/assets/img/...`
-* Temporary uploads are in `/tmp-preview` and cleaned up after post creation
-* Add custom styles to `public/styles.css`
+### Libraries Used
+
+- **[Gorilla Mux](https://github.com/gorilla/mux)** - HTTP router
+- **[Gorilla Sessions](https://github.com/gorilla/sessions)** - Session management
+- **[HTMX](https://htmx.org/)** - Dynamic HTML interactions
+- **[marked.js](https://marked.js.org/)** - Markdown parsing in browser
+- **[gopkg.in/yaml.v3](https://pkg.go.dev/gopkg.in/yaml.v3)** - YAML parsing
+
+### File Format
+
+All content uses the same frontmatter schema:
+
+```yaml
+title: string       # Required
+excerpt: string     # Optional description
+coverImage: string  # Image URL path
+date: string        # ISO date (YYYY-MM-DD)
+ogImage:
+  url: string       # Open Graph image URL
+tags: [string]      # Array of tags
+```
 
 ---
 
-## Notes
+## Docker Deployment
 
-* Markdown parsing uses [marked.js](https://marked.js.org/)
-* HTMX powers dynamic form actions (`hx-post`, `hx-delete`, etc.)
-* Form values are converted to JSON in JS before submission
+### CMS Only (Standalone)
 
----
+From the `cms/` directory:
 
-## 🐳 Docker Notes
+```bash
+docker-compose up --build
+```
 
-To build and run manually:
+This runs just the CMS at `http://localhost:8080`.
+
+### Full Site (CMS + Next.js)
+
+From the project root:
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit credentials
+nano .env
+
+# Run both services
+docker-compose up --build
+```
+
+This starts:
+- **CMS** at `http://localhost:8080`
+- **Next.js** at `http://localhost:3000`
+
+### Manual Docker Build
 
 ```bash
 docker build -t cms .
-docker run -p 8080:8080 cms
+docker run -p 8080:8080 \
+  -e CMS_USER=admin \
+  -e CMS_PASS=password \
+  -e SESSION_SECRET=secret \
+  -v $(pwd)/../_posts:/app/_posts \
+  -v $(pwd)/../_photos:/app/_photos \
+  -v $(pwd)/../public:/app/public \
+  -v $(pwd)/config.docker.json:/app/config.json \
+  cms
 ```
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `config.json` | Local development paths (`../`) |
+| `config.docker.json` | Docker paths (`./`) |
+
+The Docker setup mounts `config.docker.json` as `config.json` automatically.
 
 ---
 
-## Integrate with Next.js
+## Troubleshooting
 
-This CMS assumes that the final site (built in Next.js) will:
+### "Unknown content type" error
+- Check that the `slug` in the URL matches a content type in `config.json`
+- Ensure the content type's `directory` exists
 
-* Use the `public/` folder as its static root
-* Render blog posts from the Markdown files in `/posts`
-* Reference images via `/assets/img/...`
+### Images not showing in preview
+- Verify the image path starts with `/` (e.g., `/assets/img/...`)
+- Check that the Next.js dev server is running to serve images from `public/`
 
-You can clone this repo into your Next.js project like:
-
-```bash
-git clone https://github.com/marcbachan/go-cms.git cms
-```
-
-Then add to your root `package.json`:
-
-```json
-"scripts": {
-  "dev": "concurrently \"cd cms && go run main.go\" \"next dev\"",
-  "build": "next build",
-  "start": "next start"
-}
-```
+### Login not working
+- Ensure `.env` file exists with `CMS_USER`, `CMS_PASS`, and `SESSION_SECRET`
+- Check that environment variables are being loaded (restart the server)
 
 ---
 
-## Ideas for Roadmap
+## Roadmap Ideas
 
-One of the best things about learning Go and building this project is gradually understanding what else can be done with it. These are some ideas I'd like to implement eventually (or work with others on!):
-
-* Filter post types by tag
-* OAuth or JWT-based auth
-* Markdown linting or preview styles
-* Integrate database like Postgres
+- [ ] OAuth or JWT-based auth
+- [ ] Scheduled/draft post status
+- [ ] Bulk operations (delete multiple, tag multiple)
+- [ ] Search across all content
+- [ ] Custom fields per content type
+- [ ] Markdown linting and syntax highlighting

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ .ContentType.Name }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/styles/styles.css" />
+  <style>
+    .content-item {
+      border-bottom: 1px solid #ddd;
+      padding: 1rem 0;
+    }
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .item-header:hover {
+      background-color: #f9f9f9;
+    }
+    .preview-container {
+      display: none;
+      padding: 1rem;
+      background-color: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      margin-top: 0.5rem;
+    }
+    .preview-container.expanded {
+      display: block;
+      animation: slideDown 0.2s ease-out;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .preview-content img {
+      max-width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+    }
+    .expand-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      transition: transform 0.2s;
+    }
+    .expand-btn.expanded {
+      transform: rotate(90deg);
+    }
+    .type-nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 1rem;
+    }
+    .type-nav a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: #666;
+      border-radius: 4px;
+    }
+    .type-nav a.active {
+      background-color: rgb(255, 171, 171);
+      color: black;
+      font-weight: bold;
+    }
+    .type-nav a:hover:not(.active) {
+      background-color: #eee;
+    }
+    .tag-filter {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .tag-filter a {
+      padding: 0.25rem 0.5rem;
+      text-decoration: none;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .tag-filter a:hover {
+      background-color: #eee;
+    }
+  </style>
+</head>
+<body>
+  <nav class="type-nav">
+    <a href="/dashboard">Dashboard</a>
+    {{ range .AllTypes }}
+    <a href="/{{ .Slug }}" class="{{ if eq .Slug $.ContentType.Slug }}active{{ end }}">
+      {{ .Icon }} {{ .Name }}
+    </a>
+    {{ end }}
+  </nav>
+
+  <h1>{{ .ContentType.Icon }} {{ .ContentType.Name }}</h1>
+
+  <div class="button-row" style="padding-bottom: 2rem;">
+    <a href="/{{ .ContentType.Slug }}/new">
+      <button class="button primary">+ Create New</button>
+    </a>
+    <a href="/logout">
+      <button class="button">Log Out</button>
+    </a>
+  </div>
+
+  {{ if .Tags }}
+  <div class="tag-filter">
+    <span>Filter by tag:</span>
+    <a href="/{{ .ContentType.Slug }}">All</a>
+    {{ range .Tags }}
+    <a href="/{{ $.ContentType.Slug }}?tag={{ . }}" class="tag">{{ . }}</a>
+    {{ end }}
+  </div>
+  {{ end }}
+
+  <ul style="list-style: none; padding: 0;">
+    {{ range .Items }}
+    <li id="item-{{ .Slug }}" class="content-item">
+      <div class="item-header" onclick="togglePreview('{{ .Slug }}')">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          {{ if .CoverImage }}
+          <img src="{{ .CoverImage }}" alt="" class="list-thumbnail" />
+          {{ end }}
+          <div>
+            <a href="/{{ $.ContentType.Slug }}/edit/{{ .Slug }}" style="font-weight: bold; font-size: 1.1rem;" onclick="event.stopPropagation();">
+              {{ .Title }}
+            </a>
+            <div style="font-size: 0.85rem; color: #666;">{{ .Date }}</div>
+            <div style="margin-top: 4px;">
+              {{ range .Tags }}
+              <span class="tag">{{ . }}</span>
+              {{ end }}
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button class="expand-btn" id="expand-btn-{{ .Slug }}" title="Preview">&#9654;</button>
+          <button
+            class="button danger"
+            hx-delete="/api/{{ $.ContentType.Slug }}/{{ .Slug }}"
+            hx-target="#item-{{ .Slug }}"
+            hx-swap="outerHTML"
+            hx-confirm="Are you sure you want to delete '{{ .Title }}'?"
+            onclick="event.stopPropagation();">
+            Delete
+          </button>
+        </div>
+      </div>
+
+      <div id="preview-{{ .Slug }}" class="preview-container">
+        <div class="preview-content" id="preview-content-{{ .Slug }}">
+          Loading preview...
+        </div>
+      </div>
+    </li>
+    {{ else }}
+    <li style="padding: 2rem; text-align: center; color: #666;">No {{ .ContentType.Name }} found</li>
+    {{ end }}
+  </ul>
+
+  <script>
+    function togglePreview(slug) {
+      const container = document.getElementById('preview-' + slug);
+      const btn = document.getElementById('expand-btn-' + slug);
+
+      container.classList.toggle('expanded');
+      btn.classList.toggle('expanded');
+
+      // Load preview via HTMX if not already loaded
+      if (container.classList.contains('expanded') && !container.dataset.loaded) {
+        htmx.ajax('GET', '/{{ .ContentType.Slug }}/preview/' + slug, {
+          target: '#preview-content-' + slug,
+          swap: 'innerHTML'
+        });
+        container.dataset.loaded = 'true';
+      }
+    }
+  </script>
+</body>
+</html>

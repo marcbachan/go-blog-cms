@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>CMS Dashboard</title>
+  <link rel="stylesheet" href="/styles/styles.css" />
+  <style>
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .content-type-card {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    .content-type-card:hover {
+      border-color: rgb(255, 171, 171);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .content-type-card .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    .content-type-card .count {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #4a90e2;
+    }
+    .content-type-card h2 {
+      margin: 0.5rem 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="button-row" style="justify-content: space-between; align-items: center;">
+    <h1>CMS Dashboard</h1>
+    <a href="/logout"><button class="button">Log Out</button></a>
+  </div>
+
+  <div class="dashboard-grid">
+    {{ range .ContentTypes }}
+    <a href="/{{ .Slug }}" class="content-type-card">
+      <div class="icon">{{ .Icon }}</div>
+      <h2>{{ .Name }}</h2>
+      <div class="count">{{ index $.Counts .Slug }}</div>
+      <p>items</p>
+    </a>
+    {{ end }}
+  </div>
+</body>
+</html>

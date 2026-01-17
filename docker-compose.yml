@@ -1,13 +1,27 @@
-version: '3.9'
+version: "3.9"
+
+# Standalone CMS docker-compose
+# For full site with Next.js, use the root docker-compose.yml
 
 services:
   cms:
     build:
-      context: ./
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
     volumes:
-      - ./cms/posts:/app/posts
-      - ./cms/images:/app/images
+      # Content directories
+      - ../_posts:/app/_posts
+      - ../_photos:/app/_photos
+      # Public assets
+      - ../public:/app/public
+      # Config (use Docker-specific paths) and templates
+      - ./config.docker.json:/app/config.json
+      - ./templates:/app/templates
     environment:
       - GO111MODULE=on
+      - CMS_USER=${CMS_USER:-admin}
+      - CMS_PASS=${CMS_PASS:-password}
+      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production}
+    restart: unless-stopped
