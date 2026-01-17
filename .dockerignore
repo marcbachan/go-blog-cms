@@ -1,0 +1,23 @@
+# Build artifacts
+cms-server
+
+# Environment files
+.env
+
+# IDE
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+
+# Temporary files
+public/tmp-preview/*
+!public/tmp-preview/.gitkeep
+
+# OS files
+.DS_Store

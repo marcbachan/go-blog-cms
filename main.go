@@ -31,7 +31,6 @@ func main() {
 
 	// Public routes
 	r.HandleFunc("/login", handlers.LoginForm).Methods("GET")
-	r.HandleFunc("/", handlers.LoginForm).Methods("GET")
 	r.HandleFunc("/login", handlers.Login).Methods("POST")
 	r.HandleFunc("/logout", handlers.Logout).Methods("GET")
 
@@ -42,15 +41,22 @@ func main() {
 	protected := r.NewRoute().Subrouter()
 	protected.Use(handlers.RequireLogin)
 
-	// UI
-	protected.HandleFunc("/new", handlers.NewPostForm).Methods("GET")
-	protected.HandleFunc("/edit/{slug}", handlers.EditPostForm).Methods("GET")
-	protected.HandleFunc("/posts", handlers.ListPosts).Methods("GET")
+	// Dashboard
+	protected.HandleFunc("/", handlers.Dashboard).Methods("GET")
+	protected.HandleFunc("/dashboard", handlers.Dashboard).Methods("GET")
 
-	// API
-	protected.HandleFunc("/api/posts", handlers.CreatePost).Methods("POST")
-	protected.HandleFunc("/api/posts/{slug}", handlers.UpdatePost).Methods("PUT")
-	protected.HandleFunc("/api/posts/{slug}", handlers.DeletePost).Methods("DELETE")
+	// Generic content type routes
+	protected.HandleFunc("/{type}/new", handlers.NewContentForm).Methods("GET")
+	protected.HandleFunc("/{type}/edit/{slug}", handlers.EditContentForm).Methods("GET")
+	protected.HandleFunc("/{type}/preview/{slug}", handlers.GetPreview).Methods("GET")
+	protected.HandleFunc("/{type}", handlers.ListContent).Methods("GET")
+
+	// Generic content API routes
+	protected.HandleFunc("/api/{type}", handlers.CreateContent).Methods("POST")
+	protected.HandleFunc("/api/{type}/{slug}", handlers.UpdateContent).Methods("PUT")
+	protected.HandleFunc("/api/{type}/{slug}", handlers.DeleteContent).Methods("DELETE")
+
+	// Shared upload endpoint
 	protected.HandleFunc("/api/upload", handlers.UploadImage).Methods("POST")
 
 	log.Println("CMS running on http://localhost:8080")

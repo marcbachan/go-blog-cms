@@ -1,0 +1,20 @@
+{
+  "postsDir": "./_posts",
+  "imagesDir": "./public/assets/img",
+  "contentTypes": [
+    {
+      "name": "Posts",
+      "slug": "posts",
+      "directory": "./_posts",
+      "imagesDir": "./public/assets/img",
+      "icon": "📝"
+    },
+    {
+      "name": "Photos",
+      "slug": "photos",
+      "directory": "./_photos",
+      "imagesDir": "./public/assets/photo",
+      "icon": "📷"
+    }
+  ]
+}

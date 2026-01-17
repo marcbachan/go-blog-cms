@@ -1,0 +1,30 @@
+<div class="preview-content">
+  {{ if .Item.CoverImage }}
+  <img src="{{ .Item.CoverImage }}" alt="{{ .Item.Title }}" style="max-width: 100%; max-height: 200px; object-fit: cover; margin-bottom: 1rem; border-radius: 4px;" />
+  {{ end }}
+
+  {{ if .Item.Excerpt }}
+  <div style="color: #666; font-style: italic; margin-bottom: 1rem;">
+    {{ .Item.Excerpt }}
+  </div>
+  {{ end }}
+
+  <div id="preview-body-{{ .Item.Slug }}" class="markdown-body">
+    {{ .Item.Content }}
+  </div>
+
+  <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+    <a href="/{{ .ContentType.Slug }}/edit/{{ .Item.Slug }}" class="button">
+      Edit
+    </a>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const bodyEl = document.getElementById('preview-body-{{ .Item.Slug }}');
+    if (bodyEl && typeof marked !== 'undefined') {
+      bodyEl.innerHTML = marked.parse(bodyEl.textContent);
+    }
+  })();
+</script>

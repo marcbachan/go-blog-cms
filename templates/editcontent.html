@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Edit {{ .ContentType.Name }} - {{ .Item.Title }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/styles/styles.css" />
+  <style>
+    .editor-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      min-height: 70vh;
+    }
+    .editor-pane {
+      display: flex;
+      flex-direction: column;
+    }
+    .editor-pane h3 {
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #ddd;
+    }
+    .preview-pane {
+      background-color: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 1.5rem;
+      overflow-y: auto;
+      max-height: 70vh;
+    }
+    .preview-pane img {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+    .form-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    textarea#content {
+      flex-grow: 1;
+      min-height: 300px;
+      resize: vertical;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+    }
+    .type-nav {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 1rem;
+    }
+    .type-nav a {
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      color: #666;
+      border-radius: 4px;
+    }
+    .type-nav a.active {
+      background-color: rgb(255, 171, 171);
+      color: black;
+      font-weight: bold;
+    }
+    .type-nav a:hover:not(.active) {
+      background-color: #eee;
+    }
+    @media (max-width: 900px) {
+      .editor-container {
+        grid-template-columns: 1fr;
+      }
+      .preview-pane {
+        max-height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="type-nav">
+    <a href="/dashboard">Dashboard</a>
+    {{ range .AllTypes }}
+    <a href="/{{ .Slug }}" class="{{ if eq .Slug $.ContentType.Slug }}active{{ end }}">
+      {{ .Icon }} {{ .Name }}
+    </a>
+    {{ end }}
+  </nav>
+
+  <div class="button-row">
+    <a href="/{{ .ContentType.Slug }}"><button class="button">Back to {{ .ContentType.Name }}</button></a>
+    <a href="/logout"><button class="button">Log Out</button></a>
+  </div>
+
+  <h1>Editing: {{ .Item.Title }}</h1>
+
+  <div class="editor-container">
+    <div class="editor-pane">
+      <h3>Editor</h3>
+      <form id="editForm" onsubmit="submitEdit(event)" class="form-fields">
+        <div class="field-row">
+          <div>
+            <label>Title</label>
+            <input name="title" value="{{ .Item.Title }}" required />
+          </div>
+          <div>
+            <label>Date</label>
+            <input type="date" name="date" value="{{ .Item.Date }}" />
+          </div>
+        </div>
+
+        <label>Excerpt</label>
+        <input name="excerpt" value="{{ .Item.Excerpt }}" />
+
+        <div class="field-row">
+          <div>
+            <label>Cover Image URL</label>
+            <input name="coverImage" value="{{ .Item.CoverImage }}" />
+          </div>
+          <div>
+            <label>OG Image URL</label>
+            <input name="ogImage.url" value="{{ .Item.OGImage.URL }}" />
+          </div>
+        </div>
+
+        <label>Tags (comma-separated)</label>
+        <input name="tags" value="{{ join .Item.Tags ", " }}" />
+
+        <label>Content (Markdown)</label>
+        <textarea name="content" id="content">{{ .Body }}</textarea>
+
+        <button class="button primary" type="submit">Save Changes</button>
+      </form>
+      <div id="result" style="margin-top: 1em;"></div>
+    </div>
+
+    <div class="editor-pane">
+      <h3>Live Preview</h3>
+      <div class="preview-pane" id="preview">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updatePreview() {
+      const content = document.getElementById("content").value;
+      const coverImage = document.querySelector('input[name="coverImage"]').value;
+      const title = document.querySelector('input[name="title"]').value;
+      const excerpt = document.querySelector('input[name="excerpt"]').value;
+
+      let html = '';
+
+      if (title) {
+        html += '<h1 style="margin-top:0;">' + escapeHtml(title) + '</h1>';
+      }
+
+      if (coverImage) {
+        html += '<img src="' + escapeHtml(coverImage) + '" alt="cover" style="max-width:100%; margin-bottom:1em; border-radius:4px;" onerror="this.style.display=\'none\'" />';
+      }
+
+      if (excerpt) {
+        html += '<p style="color:#666; font-style:italic;">' + escapeHtml(excerpt) + '</p><hr style="margin:1rem 0;"/>';
+      }
+
+      html += marked.parse(content);
+
+      document.getElementById("preview").innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      updatePreview();
+
+      const watchedInputs = [
+        'input[name="title"]',
+        'input[name="excerpt"]',
+        'input[name="coverImage"]',
+        '#content'
+      ];
+
+      watchedInputs.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el) {
+          el.addEventListener("input", updatePreview);
+        }
+      });
+    });
+
+    async function submitEdit(event) {
+      event.preventDefault();
+      const form = document.getElementById("editForm");
+      const formData = new FormData(form);
+
+      const json = {};
+      for (const [key, value] of formData.entries()) {
+        if (key.includes(".")) {
+          const [parent, child] = key.split(".");
+          json[parent] = json[parent] || {};
+          json[parent][child] = value;
+        } else if (key === "tags") {
+          json[key] = value.split(",").map(t => t.trim()).filter(Boolean);
+        } else {
+          json[key] = value;
+        }
+      }
+
+      const slug = "{{ .Slug }}";
+      const typeSlug = "{{ .ContentType.Slug }}";
+
+      const res = await fetch('/api/' + typeSlug + '/' + slug, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json)
+      });
+
+      const result = await res.text();
+      document.getElementById("result").innerText = result;
+    }
+  </script>
+</body>
+</html>
