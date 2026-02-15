@@ -94,6 +94,7 @@
 
   <div class="button-row">
     <a href="/{{ .ContentType.Slug }}"><button class="button">Back to {{ .ContentType.Name }}</button></a>
+    <a href="http://localhost:3000/{{ .ContentType.Slug }}/{{ .Slug }}" target="_blank"><button class="button">View on Site ↗</button></a>
     <a href="/logout"><button class="button">Log Out</button></a>
   </div>
 
@@ -140,9 +141,16 @@
     </div>
 
     <div class="editor-pane">
-      <h3>Live Preview</h3>
+      <h3>
+        Live Preview
+        <span style="float: right; font-size: 0.8rem; font-weight: normal;">
+          <button class="button" onclick="showMarkdownPreview()" id="btn-md-preview" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; opacity: 1;">Markdown</button>
+          <button class="button" onclick="showSitePreview()" id="btn-site-preview" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; opacity: 0.5;">Site</button>
+        </span>
+      </h3>
       <div class="preview-pane" id="preview">
       </div>
+      <iframe id="site-preview" src="http://localhost:3000/{{ .ContentType.Slug }}/{{ .Slug }}" style="display:none; width:100%; height:70vh; border:1px solid #ddd; border-radius:4px;"></iframe>
     </div>
   </div>
 
@@ -176,6 +184,22 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function showMarkdownPreview() {
+      document.getElementById('preview').style.display = '';
+      document.getElementById('site-preview').style.display = 'none';
+      document.getElementById('btn-md-preview').style.opacity = '1';
+      document.getElementById('btn-site-preview').style.opacity = '0.5';
+    }
+
+    function showSitePreview() {
+      document.getElementById('preview').style.display = 'none';
+      const iframe = document.getElementById('site-preview');
+      iframe.style.display = '';
+      iframe.src = iframe.src; // reload
+      document.getElementById('btn-md-preview').style.opacity = '0.5';
+      document.getElementById('btn-site-preview').style.opacity = '1';
     }
 
     document.addEventListener("DOMContentLoaded", function () {

@@ -13,9 +13,12 @@
     {{ .Item.Content }}
   </div>
 
-  <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee;">
+  <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee; display: flex; gap: 0.5rem;">
     <a href="/{{ .ContentType.Slug }}/edit/{{ .Item.Slug }}" class="button">
       Edit
+    </a>
+    <a href="http://localhost:3000/{{ .ContentType.Slug }}/{{ .Item.Slug }}" target="_blank" class="button">
+      View on Site ↗
     </a>
   </div>
 </div>
