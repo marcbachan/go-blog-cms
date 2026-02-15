@@ -146,6 +146,7 @@
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <a href="http://localhost:3000/{{ $.ContentType.Slug }}/{{ .Slug }}" target="_blank" title="View on Site" onclick="event.stopPropagation();" style="text-decoration: none; font-size: 1.1rem;">↗</a>
           <button class="expand-btn" id="expand-btn-{{ .Slug }}" title="Preview">&#9654;</button>
           <button
             class="button danger"
