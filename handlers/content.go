@@ -18,28 +18,67 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Dashboard shows overview of all content types
-func Dashboard(w http.ResponseWriter, r *http.Request) {
-	allTypes := config.AppConfig.ContentTypes
-
-	// Get counts for each type
-	typeCounts := make(map[string]int)
-	for _, ct := range allTypes {
-		files, err := os.ReadDir(ct.Directory)
-		if err == nil {
-			count := 0
-			for _, f := range files {
-				if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
-					count++
-				}
-			}
-			typeCounts[ct.Slug] = count
+// hasTag checks if a tag list contains a specific tag
+func hasTag(tags []string, tag string) bool {
+	for _, t := range tags {
+		if t == tag {
+			return true
 		}
+	}
+	return false
+}
+
+// discoverTags scans all content files and returns unique tags with counts
+func discoverTags() map[string]int {
+	tagCounts := make(map[string]int)
+	dir := config.AppConfig.ContentDir
+
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("Failed to read content dir %s: %v", dir, err)
+		return tagCounts
+	}
+
+	for _, f := range files {
+		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
+			continue
+		}
+		fullPath := filepath.Join(dir, f.Name())
+		item, _, err := storage.ReadContent(fullPath)
+		if err != nil {
+			log.Printf("Failed to read %s: %v", f.Name(), err)
+			continue
+		}
+		for _, tag := range item.Tags {
+			tagCounts[tag]++
+		}
+	}
+
+	return tagCounts
+}
+
+// Dashboard shows overview of all content types discovered from tags
+func Dashboard(w http.ResponseWriter, r *http.Request) {
+	tagCounts := discoverTags()
+
+	// Build sorted list of content types
+	var tags []string
+	for tag := range tagCounts {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+
+	var contentTypes []config.ContentTypeConfig
+	typeCounts := make(map[string]int)
+	for _, tag := range tags {
+		ct := config.BuildContentType(tag)
+		contentTypes = append(contentTypes, ct)
+		typeCounts[ct.Slug] = tagCounts[tag]
 	}
 
 	tmpl := template.Must(template.ParseFiles("templates/dashboard.html"))
 	tmpl.Execute(w, map[string]any{
-		"ContentTypes": allTypes,
+		"ContentTypes": contentTypes,
 		"Counts":       typeCounts,
 	})
 }
@@ -47,11 +86,7 @@ func Dashboard(w http.ResponseWriter, r *http.Request) {
 // ListContent handles /{type} - lists all items of a content type
 func ListContent(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	files, err := os.ReadDir(ct.Directory)
 	if err != nil {
@@ -72,6 +107,12 @@ func ListContent(w http.ResponseWriter, r *http.Request) {
 
 			item.Slug = strings.TrimSuffix(f.Name(), ".md")
 			item.TypeSlug = typeSlug
+
+			// Filter by content type's tag
+			if !hasTag(item.Tags, ct.FilterTag) {
+				continue
+			}
+
 			items = append(items, item)
 		}
 	}
@@ -81,7 +122,7 @@ func ListContent(w http.ResponseWriter, r *http.Request) {
 		return items[i].Date > items[j].Date
 	})
 
-	// Tag filtering
+	// User tag filtering (on top of auto-filter)
 	filterTag := r.URL.Query().Get("tag")
 	var filtered []model.Content
 	if filterTag != "" {
@@ -97,11 +138,13 @@ func ListContent(w http.ResponseWriter, r *http.Request) {
 		filtered = items
 	}
 
-	// Collect all tags
+	// Collect all tags, excluding the content type's own FilterTag
 	tagSet := map[string]struct{}{}
 	for _, item := range items {
 		for _, t := range item.Tags {
-			tagSet[t] = struct{}{}
+			if t != ct.FilterTag {
+				tagSet[t] = struct{}{}
+			}
 		}
 	}
 	var allTags []string
@@ -110,15 +153,11 @@ func ListContent(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(allTags)
 
-	// Get all content types for navigation
-	allTypes := config.AppConfig.ContentTypes
-
 	tmpl := template.Must(template.ParseFiles("templates/listcontent.html"))
 	tmpl.Execute(w, map[string]any{
 		"Items":       filtered,
 		"Tags":        allTags,
 		"ContentType": ct,
-		"AllTypes":    allTypes,
 	})
 }
 
@@ -127,11 +166,7 @@ func GetPreview(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
 	slug := mux.Vars(r)["slug"]
 
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	path := filepath.Join(ct.Directory, slug+".md")
 	item, body, err := storage.ReadContent(path)
@@ -154,18 +189,12 @@ func GetPreview(w http.ResponseWriter, r *http.Request) {
 // NewContentForm handles GET /{type}/new
 func NewContentForm(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
-
-	allTypes := config.AppConfig.ContentTypes
+	ct := config.BuildContentType(typeSlug)
 
 	tmpl := template.Must(template.ParseFiles("templates/newcontent.html"))
 	tmpl.Execute(w, map[string]any{
 		"ContentType": ct,
-		"AllTypes":    allTypes,
+		"FilterTag":   ct.FilterTag,
 	})
 }
 
@@ -174,11 +203,7 @@ func EditContentForm(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
 	slug := mux.Vars(r)["slug"]
 
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	path := filepath.Join(ct.Directory, slug+".md")
 	item, body, err := storage.ReadContent(path)
@@ -186,8 +211,6 @@ func EditContentForm(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Content not found", http.StatusNotFound)
 		return
 	}
-
-	allTypes := config.AppConfig.ContentTypes
 
 	tmpl := template.New("editcontent.html").Funcs(template.FuncMap{
 		"join": strings.Join,
@@ -199,18 +222,13 @@ func EditContentForm(w http.ResponseWriter, r *http.Request) {
 		"Slug":        slug,
 		"Body":        body,
 		"ContentType": ct,
-		"AllTypes":    allTypes,
 	})
 }
 
 // CreateContent handles POST /api/{type}
 func CreateContent(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	var item model.Content
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -260,11 +278,7 @@ func UpdateContent(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
 	slug := mux.Vars(r)["slug"]
 
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	var item model.Content
 	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
@@ -287,11 +301,7 @@ func DeleteContent(w http.ResponseWriter, r *http.Request) {
 	typeSlug := mux.Vars(r)["type"]
 	slug := mux.Vars(r)["slug"]
 
-	ct, ok := config.GetContentType(typeSlug)
-	if !ok {
-		http.Error(w, "Unknown content type", http.StatusNotFound)
-		return
-	}
+	ct := config.BuildContentType(typeSlug)
 
 	contentPath := filepath.Join(ct.Directory, slug+".md")
 	imgPath := filepath.Join(ct.ImagesDir, slug)

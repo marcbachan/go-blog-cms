@@ -97,11 +97,9 @@
 <body>
   <nav class="type-nav">
     <a href="/dashboard">Dashboard</a>
-    {{ range .AllTypes }}
-    <a href="/{{ .Slug }}" class="{{ if eq .Slug $.ContentType.Slug }}active{{ end }}">
-      {{ .Icon }} {{ .Name }}
+    <a href="/{{ .ContentType.Slug }}" class="active">
+      {{ .ContentType.Icon }} {{ .ContentType.Name }}
     </a>
-    {{ end }}
   </nav>
 
   <h1>{{ .ContentType.Icon }} {{ .ContentType.Name }}</h1>

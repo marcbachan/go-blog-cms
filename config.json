@@ -1,20 +1,10 @@
 {
-  "postsDir": "../_posts",
+  "contentDir": "../_content",
   "imagesDir": "../public/assets/img",
-  "contentTypes": [
-    {
-      "name": "Posts",
-      "slug": "posts",
-      "directory": "../_posts",
-      "imagesDir": "../public/assets/img",
-      "icon": "📝"
-    },
-    {
-      "name": "Photos",
-      "slug": "photos",
-      "directory": "../_photos",
-      "imagesDir": "../public/assets/photo",
-      "icon": "📷"
-    }
-  ]
+  "tagConfig": {
+    "posts": { "icon": "📝", "name": "Posts" },
+    "photos": { "icon": "📷", "name": "Photos", "imagesDir": "../public/assets/photo" },
+    "art": { "icon": "🎨", "name": "Art" },
+    "resume": { "icon": "📄", "name": "Resume" }
+  }
 }
