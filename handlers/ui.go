@@ -26,7 +26,7 @@ func EditPostForm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(config.AppConfig.PostsDir, slug+".md")
+	path := filepath.Join(config.AppConfig.ContentDir, slug+".md")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		http.Error(w, "Post not found", http.StatusNotFound)
@@ -48,7 +48,7 @@ func EditPostForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListPosts(w http.ResponseWriter, r *http.Request) {
-	files, err := os.ReadDir(config.AppConfig.PostsDir)
+	files, err := os.ReadDir(config.AppConfig.ContentDir)
 	if err != nil {
 		http.Error(w, "Failed to list posts", http.StatusInternalServerError)
 		return
@@ -58,7 +58,7 @@ func ListPosts(w http.ResponseWriter, r *http.Request) {
 
 	for _, f := range files {
 		if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
-			fullPath := filepath.Join(config.AppConfig.PostsDir, f.Name())
+			fullPath := filepath.Join(config.AppConfig.ContentDir, f.Name())
 
 			post, _, err := storage.ReadMarkdownWithFrontmatter(fullPath)
 			if err != nil {

@@ -41,7 +41,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := fmt.Sprintf("%s.md", post.Slug)
-	fullPath := filepath.Join(config.AppConfig.PostsDir, filename)
+	fullPath := filepath.Join(config.AppConfig.ContentDir, filename)
 
 	// Assume: post.CoverImage was "/tmp-preview/scottishcow.jpg"
 
@@ -127,7 +127,7 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := filepath.Join(config.AppConfig.PostsDir, slug+".md")
+	path := filepath.Join(config.AppConfig.ContentDir, slug+".md")
 	if err := storage.WriteMarkdownWithFrontmatter(path, post); err != nil {
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
@@ -145,7 +145,7 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	postPath := filepath.Join(config.AppConfig.PostsDir, slug+".md")
+	postPath := filepath.Join(config.AppConfig.ContentDir, slug+".md")
 	imgPath := filepath.Join(config.AppConfig.ImagesDir, slug)
 
 	err := os.Remove(postPath)

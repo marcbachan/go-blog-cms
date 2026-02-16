@@ -4,24 +4,30 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"strings"
 )
 
-// ContentTypeConfig defines a single content type
+// TagOverride provides optional display overrides for a tag category
+type TagOverride struct {
+	Name      string `json:"name,omitempty"`
+	Icon      string `json:"icon,omitempty"`
+	ImagesDir string `json:"imagesDir,omitempty"`
+}
+
+// ContentTypeConfig is a runtime display struct used by templates
 type ContentTypeConfig struct {
-	Name      string `json:"name"`      // Display name: "Posts", "Photos"
-	Slug      string `json:"slug"`      // URL slug: "posts", "photos"
-	Directory string `json:"directory"` // Content dir: "../_posts"
-	ImagesDir string `json:"imagesDir"` // Image storage: "../public/assets/img"
-	Icon      string `json:"icon"`      // UI icon: "📝", "📷"
+	Name      string
+	Slug      string
+	Directory string
+	ImagesDir string
+	Icon      string
+	FilterTag string
 }
 
 type Settings struct {
-	// Legacy fields for backward compatibility
-	PostsDir  string `json:"postsDir"`
-	ImagesDir string `json:"imagesDir"`
-
-	// Content types array
-	ContentTypes []ContentTypeConfig `json:"contentTypes"`
+	ContentDir string                 `json:"contentDir"`
+	ImagesDir  string                 `json:"imagesDir"`
+	TagConfig  map[string]TagOverride `json:"tagConfig"`
 }
 
 var AppConfig Settings
@@ -38,26 +44,33 @@ func LoadConfig(path string) {
 		log.Fatalf("Failed to decode config JSON: %v", err)
 	}
 
-	// Auto-generate content types from legacy config if not defined
-	if len(AppConfig.ContentTypes) == 0 && AppConfig.PostsDir != "" {
-		AppConfig.ContentTypes = []ContentTypeConfig{
-			{
-				Name:      "Posts",
-				Slug:      "posts",
-				Directory: AppConfig.PostsDir,
-				ImagesDir: AppConfig.ImagesDir,
-				Icon:      "📝",
-			},
-		}
+	if AppConfig.TagConfig == nil {
+		AppConfig.TagConfig = make(map[string]TagOverride)
 	}
 }
 
-// GetContentType returns config for a content type by slug
-func GetContentType(slug string) (*ContentTypeConfig, bool) {
-	for i := range AppConfig.ContentTypes {
-		if AppConfig.ContentTypes[i].Slug == slug {
-			return &AppConfig.ContentTypes[i], true
+// BuildContentType constructs a ContentTypeConfig for a given tag
+func BuildContentType(tag string) ContentTypeConfig {
+	ct := ContentTypeConfig{
+		Name:      strings.ToUpper(tag[:1]) + tag[1:],
+		Slug:      tag,
+		Directory: AppConfig.ContentDir,
+		ImagesDir: AppConfig.ImagesDir,
+		Icon:      "📁",
+		FilterTag: tag,
+	}
+
+	if override, ok := AppConfig.TagConfig[tag]; ok {
+		if override.Name != "" {
+			ct.Name = override.Name
+		}
+		if override.Icon != "" {
+			ct.Icon = override.Icon
+		}
+		if override.ImagesDir != "" {
+			ct.ImagesDir = override.ImagesDir
 		}
 	}
-	return nil, false
+
+	return ct
 }
